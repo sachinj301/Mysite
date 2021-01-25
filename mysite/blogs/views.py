@@ -5,9 +5,16 @@ from .models import Post
 from django.shortcuts import get_object_or_404
 from .forms import EmailPostForm
 from django.core.mail import send_mail
-
-def post_list(request,category=None):
+from .models import Comment
+from .forms import CommentForm
+from taggit.models import Tag
+from django.db.models import Count
+def post_list(request,category=None, tag_slug=None):
     object_list=Post.published.all()
+    tag = None
+    if tag_slug:
+        tag=get_object_or_404(Tag, slug=tag_slug)
+        object_list = object_list.filter(tags__in=[tag])
     paginator=Paginator(object_list,1)
     page=request.GET.get('page')
     try:
@@ -16,8 +23,7 @@ def post_list(request,category=None):
         posts=paginator.page(1)
     except EmptyPage:
         posts=paginator.page(paginator.num_pages)
-    #posts=paginator.get_page(page)
-    return render(request,'post/list.html',{'posts':posts,'page':page})
+    return render(request,'post/list.html',{'posts':posts,'page':page, 'tag': tag})
 
 def post_detail(request, year, month, day, post):
     post=get_object_or_404(Post,slug=post,
@@ -27,14 +33,29 @@ def post_detail(request, year, month, day, post):
                            publish__day=day
                            )
 
-    # post = get_object_or_404(Post, slug=post,
-    #                          status='published',
-    #                          publish__year=year,
-    #                          publish__month=month,
-    #                          publish__day=day)
-    return render(request,'post/detail.html',{'post':post})
+    comments=post.comments.filter(active=True)
+    new_comment=None
+    if request.method == 'POST':
+        form = CommentForm(data=request.POST)
 
-#
+        if form.is_valid():
+            new_comment=form.save(commit=False)
+            new_comment.post=post
+
+            new_comment.save()
+
+    else:
+        form=CommentForm()
+
+    post_tags_ids = post.tags.values_list('id',flat=True)
+    similar_posts = Post.published.filter(tags__in=post_tags_ids).exclude(id=post.id)
+    similar_posts = similar_posts.annotate(same_tags = Count('tags')).order_by('-same_tags','-publish')[:4]
+
+
+    return render(request,'post/detail.html',{'post':post, 'comments':comments, 'new_comment':new_comment, 'form':form,
+                                              'similar_posts':similar_posts})
+
+
 
 def post_share(request, post_id):
 # Retrieve post by id
