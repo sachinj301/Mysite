@@ -1,5 +1,6 @@
 
 {% extends "base.html" %}
+{% load blog_tags %}
 
 {% block title %}{{ post.title }}{% endblock %}
 
@@ -9,7 +10,7 @@
   <p class="date">
     Published {{ post.publish }} by {{ post.author }}
   </p>
-  {{ post.body|linebreaks }}
+  {{ post.body|markdown }}
   <p>
     <a href="{% url "blogs:post_share" post.id %}">
       Share this post
@@ -35,7 +36,9 @@
     <p class="info">
       comment{{ forloop.counter }} by {{ comment.name }}
       {{ comment.created }}
+
     </p>
+    {{ comment.body|linebreaks }}
   </div>
 {% empty %}
 <p>There are no comments yet.</p>
@@ -52,18 +55,6 @@
 </form>
 
 {% endif %}
-
-
-
-
-  <!--<h2>Similar posts</h2>
-  {% for post in similar_posts %}
-    <p>
-      <a href="{{ post.get_absolute_url }}">{{ post.title }}</a>
-    </p>
-  {% empty %}
-    There are no similar posts yet.
-  {% endfor %}-->
 
 
 {% endblock %}
